@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teachable Machine Image Model</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            flex-direction: column;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            font-size: 16px;
+            margin: 20px 0;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #webcam-container {
+            margin-bottom: 20px;
+            border: 5px solid #4CAF50;
+            border-radius: 10px;
+            overflow: hidden;
+            animation: fadeIn 2s ease-out;
+        }
+
+        #label-container {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            animation: fadeIn 3s ease-out;
+        }
+
+        #label-container div {
+            margin: 5px 0;
+            padding: 10px;
+            background-color: #e7f9e7;
+            border-radius: 5px;
+            transition: transform 0.3s ease;
+        }
+
+        #label-container div:hover {
+            transform: scale(1.05);
+        }
+
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+        .toggle-label {
+            font-size: 16px;
+            margin-right: 10px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        .toggle-switch input {
+            display: none;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #4CAF50;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div>Teachable Machine Image Model</div>
+    <button type="button" onclick="init()">Start</button>
+    <div id="webcam-container"></div>
+    <div id="label-container"></div>
+
+    <div class="toggle-container">
+        <span class="toggle-label">Camera:</span>
+        <label class="toggle-switch">
+            <input type="checkbox" id="toggle-camera" checked>
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    <script type="text/javascript">
+        const URL = "https://teachablemachine.withgoogle.com/models/azNixyg3L/";
+
+        let model, webcam, labelContainer, maxPredictions;
+
+        async function init() {
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+
+            model = await tmImage.load(modelURL, metadataURL);
+            maxPredictions = model.getTotalClasses();
+
+            const flip = true;
+            webcam = new tmImage.Webcam(200, 200, flip);
+            await webcam.setup();
+            await webcam.play();
+            window.requestAnimationFrame(loop);
+
+            document.getElementById("webcam-container").appendChild(webcam.canvas);
+            labelContainer = document.getElementById("label-container");
+            for (let i = 0; i < maxPredictions; i++) {
+                labelContainer.appendChild(document.createElement("div"));
+            }
+
+            document.getElementById("toggle-camera").addEventListener("change", toggleCamera);
+        }
+
+        async function loop() {
+            if (webcam) {
+                webcam.update();
+                await predict();
+                window.requestAnimationFrame(loop);
+            }
+        }
+
+        async function predict() {
+            const prediction = await model.predict(webcam.canvas);
+            for (let i = 0; i < maxPredictions; i++) {
+                const classPrediction =
+                    prediction[i].className + ": " + prediction[i].probability.toFixed(2);
+                labelContainer.childNodes[i].innerHTML = classPrediction;
+            }
+        }
+
+        function toggleCamera() {
+            const toggle = document.getElementById("toggle-camera");
+            if (toggle.checked) {
+                webcam.play();
+                loop();
+            } else {
+                webcam.stop();
+                clearCanvas();
+            }
+        }
+
+        function clearCanvas() {
+            const context = webcam.canvas.getContext("2d");
+            context.clearRect(0, 0, webcam.canvas.width, webcam.canvas.height);
+            labelContainer.innerHTML = "";
+        }
+    </script>
+</body>
+</html>
